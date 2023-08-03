@@ -1,1 +1,53 @@
-
+{
+    "IngredientName": "adl-linuxptp",
+    "Description": "IDF ABI Project Config File for ADL LINUXPTP Ingredient",
+    "OutputConfiguration": "idf/PackageGen.json",
+    "OutputRoot": "OWRBin",
+    "OutputDir": "OWRBuild",
+    "PackageRoot": "OWRPackage",
+    "PackageMetadataTemplate": "idf/PackageMetadataTemplate.json",
+   // "VulnerabilityScan": {
+   //     "ServerURL": "https://snyk.devtools.intel.com/api"
+   // },
+    "Protex": {
+        "Server": "amrprotex003.devtools.intel.com",
+        "ProjectID": "c_iotg_seg_sed_ese_ethernet-tsndriver_dev-bkc_22712"
+   },
+   // "BinaryScan": {
+   //     "ServerURL": "https://bdba001.icloud.intel.com",
+   //     "ServerGroup": "52"
+   // },
+   // "StaticSecurityScan": {
+   //     "ServerURL": "https://sast.intel.com",
+   //     "ProjectID": "336687",
+   //     "IsPublic": true
+  //  },
+    "SubComponents": [
+        {
+            "Name": "adl-eth-driver",
+            "Description": "ADL ETH DRIVER Script App",
+            "ProjectFile": "./build.sh",
+            "ProjectType": "Script",
+            "WorkingDirectory": "idf",
+            "AdditionalFlags": "",
+            "AdditionalEnvVars": "",
+            "Klocwork": {
+                "SkipKlocworkScan": true
+            }
+        },
+        {
+            "Name": "cov-adl-eth-driver",
+            "Description": "ADL ETH DRIVER COV Script App for KW",
+            "ProjectFile": "./cov_build.sh",
+            "ProjectType": "Script",
+            "WorkingDirectory": "idf",
+            "AdditionalFlags": "",
+            "AdditionalEnvVars": "",
+            "Coverity":{
+                "Stream": "ENV:CoverityStream",
+                "SkipCoverityScan": false
+            }
+        }
+    ],    
+    "SchemaVersion": "1.0"
+}
