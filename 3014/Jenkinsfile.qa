@@ -1,0 +1,109 @@
+#!groovy
+@Library('abi@2.5.0') _
+
+import owm.common.BuildInfo
+Map buildinfo = BuildInfo.instance.data
+
+pipeline{
+
+    agent {
+        node {
+            label 'ESC-DOCKER1-SLES12'
+        }
+    }
+
+    environment {
+        DATETIME = new Date().format("yyyyMMdd-HHmm");
+        //ARTIFACTORY_PATH = "sed-dgn-local/yocto/builds/2022/Mainline_BKC/20220127-0110"
+        //ARTIFACTORY_SERVER = "ubit-artifactory-sh.intel.com"
+        //VIRUS_SCAN_DOCKER_IMAGE="amr-registry.caas.intel.com/esc-devops/utils/uvscan/linux/uvscan-app:20210726_0951"
+        BuildVersion = "1.0.000"
+        ABI_CONTAINER = "TRUE"
+        //DOCKER = "amr-registry.caas.intel.com/esc-devops/plat/kmb/lin/pms/ubuntu1804:20220214_1402"
+        DOCKER = "linuxptp:3014"
+        TMPDIR = "/OWR/Tools/tmp"
+        HOST_LTOKEN = "/nfs/png/home/lab_bldmstr/.klocwork/ltoken"
+        NFS_KW_INSTALLER = "/nfs/png/disks/ecg_es_disk2"
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '90', artifactDaysToKeepStr: '30'))
+        skipDefaultCheckout()
+    }
+
+    parameters {
+        booleanParam(name: 'CLEANWS', defaultValue: true, description: 'Clean workspace')
+        booleanParam(name: 'EMAIL', defaultValue: true, description: 'Email notification upon job completion')
+        booleanParam(name: 'PUBLISH', defaultValue: true, description: 'Artifacts deployment')
+        string(name: 'BRANCH_linuxptp', trim: true, defaultValue: 'refers/head/master', description: 'Git Branch, Tag, or CommitID identifier')
+        string(name: 'BRANCH_IA', trim: true, defaultValue: 'refers/head/main', description: 'Git Branch, Tag, or CommitID identifier')
+    }
+
+    stages {
+        stage ('CLEAN') {
+            when {
+                expression { params.CLEANWS == true }
+            }
+            steps {
+                deleteDir()
+                script {
+                    currentBuild.displayName = "linuxptp-${BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage("SCM") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -e PATH=/home/lab_bldmstr/bin:$PATH -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v ${NFS_KW_INSTALLER}:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                parallel (
+                    "linuxptp": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.linuxptp-ia-clocklib.git']],
+                        branches: [[name: "${params.BRANCH_linuxptp}"]],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/linuxptp-ia_clocklib'],
+                        [$class: 'ScmName', name: 'linuxptp-ia_clocklib'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "networking.ia-clocklib": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.ia-clocklib.git']],
+                        branches: [[name: "${params.BRANCH_IA}"]],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/IA_ClockLib'],
+                        [$class: 'ScmName', name: 'IA_ClockLib'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "esc-engservices": {
+                        checkout changelog: false, scm: ([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.henosis.build.automation.services.git']],
+                        branches: [[name: 'refs/heads/master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/esc-engservices'],
+                        [$class: 'ScmName', name: 'esc-engservices'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "henosis": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.jenkins.cac.git']],
+                        branches: [[name: 'master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
+                        [$class: 'ScmName', name: 'ose-repo'],
+                        [$class: 'CleanBeforeCheckout']]])
+                    }
+                )
+            }
+        }
+    }
+}
