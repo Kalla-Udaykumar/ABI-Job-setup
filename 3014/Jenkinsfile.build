@@ -127,7 +127,7 @@ pipeline{
                 script {
                     BuildInfo.instance.data["Version"] = env.BuildVersion
                     PrepareWS()
-                    abi_build subComponentName: "build"
+                    abi_build subComponentName: "adl-linuxptp"
                 }
             }
         }
