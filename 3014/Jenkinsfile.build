@@ -37,8 +37,8 @@ pipeline{
     }
 
     stages {
-      stage ("CLEAN") {
-        when {
+        stage ("CLEAN") {
+            when {
                 expression { params.CLEANWS == true }
             }
             steps {
@@ -47,89 +47,90 @@ pipeline{
                     currentBuild.displayName = "linuxptp-${BUILD_NUMBER}"
                 }
             }
-      }
+        }
 
-      stage ("SCM") {
-        agent {
-            docker {
-                image "${DOCKER}"
-                args '--entrypoint= -e PATH=/home/lab_bldmstr/bin:$PATH -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v ${NFS_KW_INSTALLER}:/build/tools'
-                reuseNode true
+        stage ("SCM") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -e PATH=/home/lab_bldmstr/bin:$PATH -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v ${NFS_KW_INSTALLER}:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                parallel (
+                    "linuxptp": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.linuxptp-ia-clocklib.git']],
+                        branches: [[name: "master"]],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/linuxptp-ia_clocklib'],
+                        [$class: 'ScmName', name: 'linuxptp-ia_clocklib'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "networking.ia-clocklib": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.ia-clocklib.git']],
+                        branches: [[name: "main"]],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/IA_ClockLib'],
+                        [$class: 'ScmName', name: 'IA_ClockLib'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "esc-engservices": {
+                        checkout changelog: false, scm: ([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.henosis.build.automation.services.git']],
+                        branches: [[name: 'refs/heads/master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/esc-engservices'],
+                        [$class: 'ScmName', name: 'esc-engservices'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "henosis": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/Kalla-Udaykumar/ABI-Job-setup.git']],
+                        branches: [[name: 'master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
+                        [$class: 'ScmName', name: 'ose-repo'],
+                        [$class: 'CleanBeforeCheckout']]])
+                    }
+                )
             }
         }
-        steps {
-          parallel (
-            "linuxptp": {
-                checkout([$class: 'GitSCM',
-                userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.linuxptp-ia-clocklib.git']],
-                branches: [[name: "master"]],
-                extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/linuxptp-ia_clocklib'],
-                [$class: 'ScmName', name: 'linuxptp-ia_clocklib'],
-                [$class: 'CloneOption', timeout: 60],
-                [$class: 'CleanBeforeCheckout'],
-                [$class: 'CheckoutOption', timeout: 60]]])
-            },
-            "networking.ia-clocklib": {
-                checkout([$class: 'GitSCM',
-                userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.ia-clocklib.git']],
-                branches: [[name: "main"]],
-                extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/IA_ClockLib'],
-                [$class: 'ScmName', name: 'IA_ClockLib'],
-                [$class: 'CloneOption', timeout: 60],
-                [$class: 'CleanBeforeCheckout'],
-                [$class: 'CheckoutOption', timeout: 60]]])
-            },
-            "esc-engservices": {
-                checkout changelog: false, scm: ([$class: 'GitSCM',
-                userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.henosis.build.automation.services.git']],
-                branches: [[name: 'refs/heads/master']],
-                extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/esc-engservices'],
-                [$class: 'ScmName', name: 'esc-engservices'],
-                [$class: 'CloneOption', timeout: 60],
-                [$class: 'CleanBeforeCheckout'],
-                [$class: 'CheckoutOption', timeout: 60]]])
-            },
-            "henosis": {
-                checkout([$class: 'GitSCM',
-                userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/Kalla-Udaykumar/ABI-Job-setup.git']],
-                branches: [[name: 'master']],
-                extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
-                [$class: 'ScmName', name: 'ose-repo'],
-                [$class: 'CleanBeforeCheckout']]])
+        stage ("ABI") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= '
+                    reuseNode true
+                }
             }
-          )
+            steps {
+                script {
+                    abi.shell("cp -r ${WORKSPACE}/abi/henosis/3014/idf ${WORKSPACE}/abi")
+                    PrepareWS()
+                } 
+            }
         }
-    }
-    stage ("ABI") {
-      agent {
-          docker {
-              image "${DOCKER}"
-              args '--entrypoint= '
-              reuseNode true
-          }
-      }
-      steps {
-         script {
-              abi.shell("cp -r ${WORKSPACE}/abi/henosis/3014/idf ${WORKSPACE}/abi")
-              PrepareWS()
-          } 
-      }
-    }
-    stage ("BUILD") {
-      agent {
-          docker {
-              image "${DOCKER}"
-              args '--entrypoint= '
-              reuseNode true
-          }
-      }
-      steps {
-          script {
-              BuildInfo.instance.data["Version"] = env.BuildVersion
-              PrepareWS()
-              abi_build subComponentName: "build"
-          }
-      }
+        stage ("BUILD") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= '
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    BuildInfo.instance.data["Version"] = env.BuildVersion
+                    PrepareWS()
+                    abi_build subComponentName: "build"
+                }
+            }
+        }
     }
 }
 
