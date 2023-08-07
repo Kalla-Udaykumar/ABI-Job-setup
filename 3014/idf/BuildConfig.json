@@ -24,7 +24,7 @@
             }
         },
         {
-            "Name": "cov-adl-eth-driver",
+            "Name": "cov-adl-linuxptp",
             "Description": "ADL LINUXPTP COV Script App for KW",
             "ProjectFile": "./cov_build.sh",
             "ProjectType": "Script",
