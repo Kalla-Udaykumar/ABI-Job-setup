@@ -5,6 +5,5 @@ make install
 cd /src/test
 make
 
-cd ../../..
 cd ${WORKSPACE}/abi/linuxptp-ia_clocklib/
 make
