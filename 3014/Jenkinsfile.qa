@@ -67,7 +67,7 @@ pipeline{
                     "linuxptp": {
                         checkout([$class: 'GitSCM',
                         userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.linuxptp-ia-clocklib.git']],
-                        branches: [[name: "${params.BRANCH_linuxptp}"]],
+                        branches: [[name: "master"]],
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/linuxptp-ia_clocklib'],
                         [$class: 'ScmName', name: 'linuxptp-ia_clocklib'],
                         [$class: 'CloneOption', timeout: 60],
@@ -77,7 +77,7 @@ pipeline{
                     "networking.ia-clocklib": {
                         checkout([$class: 'GitSCM',
                         userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/applications.infrastructure.time-sensitive-networking.ia-clocklib.git']],
-                        branches: [[name: "${params.BRANCH_IA}"]],
+                        branches: [[name: "main"]],
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir:'abi/IA_ClockLib'],
                         [$class: 'ScmName', name: 'IA_ClockLib'],
                         [$class: 'CloneOption', timeout: 60],
@@ -96,7 +96,7 @@ pipeline{
                     },
                     "henosis": {
                         checkout([$class: 'GitSCM',
-                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.jenkins.cac.git']],
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/Kalla-Udaykumar/ABI-Job-setup.git']],
                         branches: [[name: 'master']],
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
                         [$class: 'ScmName', name: 'ose-repo'],
@@ -105,5 +105,60 @@ pipeline{
                 )
             }
         }
+
+        stage ("ABI") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= '
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    abi.shell("cp -r ${WORKSPACE}/abi/henosis/3014/idf ${WORKSPACE}/abi")
+                    PrepareWS()
+                } 
+            }
+        }
+
+        stage ("COVERITY") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= '
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    env.CoverityStream = "ADL_LIN_LINUXPTP"
+                    abi.shell("mkdir -p /OWR/Tools/coverity/2022.3.1/")
+                    abi.shell("mkdir -p /OWR/Tools/cov_report/2022.3.1/")
+                    abi.shell("cp -r /build/tools/engsrv/tools/coverity-analyze/. /OWR/Tools/coverity/2022.3.1/")
+                    abi.shell("cp -r /build/tools/engsrv/tools/coverity-reports/. /OWR/Tools/cov_report/2022.3.1/")
+                    //Enable coverity scan
+                    abi_coverity_analyze server: 'https://coverityent.devtools.intel.com/prod8', stream: env.CoverityStream, version: env.BuildVersion, auditreport: true
+                     
+                }
+            }
+        }
     }
+}
+
+void PrepareWS(String BuildConfig="idf/BuildConfig.json") {
+    log.Debug("Enter")
+
+    log.Info("This build is running on Node:${env.NODE_NAME} WorkSpace: ${env.WORKSPACE}")
+
+    abi_setup_proxy()
+    
+    abi_init config: BuildConfig, ingPath: "abi", checkoutPath: "abi", skipCheckout: true
+
+    def ctx
+    ctx = abi_get_current_context()
+    ctx['IngredientVersion'] = env.BuildVersion
+    abi_set_current_context(ctx)
+
+    log.Debug("Exit")
 }
