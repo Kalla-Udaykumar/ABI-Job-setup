@@ -1,2 +1,28 @@
 {
+    "IngredientName": "Tep Debian",
+    "Description": "IDF ABI Project Config File for TEP Debian Ingredient",
+    "OutputConfiguration": "idf/PackageGen.json",
+    "OutputRoot": "OWRBin",
+    "OutputDir": "OWRBuild",
+    "PackageRoot": "OWRPackage",
+    "PackageMetadataTemplate": "idf/PackageMetadataTemplate.json",
+   /* "Protex": {
+        "Server": "amrprotex003.devtools.intel.com",
+        "ProjectID": "c_iotg_seg_sed_ese_ethernet-tsndriver_dev-bkc_22712"
+   },*/
+    "SubComponents": [
+        {
+            "Name": "tep-debian",
+            "Description": "TEP Debian Script App",
+            "ProjectFile": "./build.sh",
+            "ProjectType": "Script",
+            "WorkingDirectory": "idf",
+            "AdditionalFlags": "",
+            "AdditionalEnvVars": "",
+            "Klocwork": {
+                "SkipKlocworkScan": true
+            }
+        }
+    ],    
+    "SchemaVersion": "1.0"
 }
