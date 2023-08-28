@@ -1,0 +1,189 @@
+#!groovy
+@Library('abi@2.4.0') _
+
+import owm.common.BuildInfo
+Map buildinfo = BuildInfo.instance.data
+
+
+def Reports_folder() {
+    dir("${WORKSPACE}") {
+        sh """#!/bin/bash -xe
+        mkdir -p ${WORKSPACE}/artifacts
+        mkdir -p ${WORKSPACE}/artifacts/reports
+        """
+    }
+}
+
+/*def Artifactsi_Folder() {
+    dir("${WORKSPACE}") {
+        sh"""#!/bin/bash -xe
+         mkdir -p ${WORKSPACE}/vertical-utils
+        cp -r ${WORKSPACE}/abi/dispvirt-vertical-utils/aosp_diff ${WORKSPACE}/vertical-utils
+        cp -r ${WORKSPACE}/abi/dispvirt-vertical-utils/bsp_diff ${WORKSPACE}/vertical-utils
+        cp -r ${WORKSPACE}/abi/dispvirt-vertical-utils/host ${WORKSPACE}/vertical-utils
+        mv ${WORKSPACE}/abi/manifest/.repo/manifests/${MANIFEST_FILE} celadon_sriov_smr0_vertical_${YEAR}_WW${WW}_r2_manifest.xml
+        zip -r vertical_sriov_patches.zip ${WORKSPACE}/vertical-utils
+        zip -r celadon_sriov_scripts.zip ${WORKSPACE}/abi/kvm.scripts/sriov_enabled
+        zip -r sriov_frimwares.zip ${WORKSPACE}/abi/sriov_firmware
+        """
+    }
+
+}*/
+
+
+
+
+pipeline {
+    agent {
+        node {
+            label 'BSP-DOCKER19-SLES12'
+        }
+    }
+
+    environment {
+        DATETIME = new Date().format("yyyyMMdd-HHmm");
+        YEAR = new Date().format("yyyy")
+        WW = new Date().format("ww")
+        BDSERVER='https://amrprotex008.devtools.intel.com'
+        WORKSPACE_LIN="/build/cje/workspace/${JOB_BASE_NAME}"
+        BuildVersion = "1.0.000"
+        ABI_CONTAINER = "TRUE"
+        DOCKER = "rplpabi:0412"
+        TMPDIR = "/OWR/Tools/tmp"
+        JOB_TYPE = "prod"
+        HOST_LTOKEN = "/nfs/png/home/lab_bldmstr/.klocwork/ltoken"
+        NFS_KW_INSTALLER = "/nfs/png/disks/ecg_es_disk2"
+        STAGING_DIR = "${WORKSPACE}/abi/upload"
+    }
+
+     options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '90', artifactDaysToKeepStr: '30'))
+        skipDefaultCheckout()
+    }
+
+    parameters {
+        booleanParam(name: 'CLEAN', defaultValue: true, description: 'Clean workspace')      
+        booleanParam(name: 'BUILD', defaultValue: true, description: 'Build release binaries')
+        booleanParam(name: 'BDBA', defaultValue: true, description: 'Execute BDBA Scan on binaries')
+        booleanParam(name: 'CLANG', defaultValue: true, description: 'Execute CLANG scan on sources')
+        booleanParam(name: 'PROTEX', defaultValue: true, description: 'Execute PROTEX Scan on sources')      
+        booleanParam(name: 'VIRUSSCAN', defaultValue: true, description: 'Execute Virus Scan on results')        
+        booleanParam(name: 'EMAIL', defaultValue: true, description: 'Email notification upon job completion')
+        booleanParam(name: 'PUBLISH', defaultValue: true, description: 'Artifacts deployment')
+	    string(name: 'MANIFEST_BRANCH', trim: true, defaultValue: '2023_WW08_SMR0_R2', description: 'Provide Git init Branch name, Ex: master')
+        string(name: 'MANIFEST_FILE', trim: true, defaultValue: 'r2_vertical_sriov_manifest.xml', description: 'Provide Manifest filename, Ex: RPLP_SRIOV_CIV.xml')
+        string(name: 'KVM_BRANCH', trim: true, defaultValue: 'rpl_p_beta', description: 'Provide Git init Branch name, Ex: master')
+    }
+
+    stages {
+        stage ('BDNAME CHANGE') {
+            steps {
+                script {
+                    currentBuild.displayName = "RPLP_SRIOV-${BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage ('CLEAN') {
+            when {
+                expression { params.CLEAN == true }
+            }
+            steps {
+                deleteDir()
+            }
+        }
+
+        stage('SCM: GIT') {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -e PATH=/home/lab_bldmstr/bin:$PATH -v /nfs/png/home/lab_bldmstr/docker:/home/lab_bldmstr/.ssh -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v /nfs/png/disks/ecg_es_disk2:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                parallel(
+                    "esc-repo": {
+                        checkout changelog: false, scm: ([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.henosis.build.automation.services.git']],
+                        branches: [[name: 'refs/heads/master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/esc-engservices'],
+                        [$class: 'ScmName', name: 'esc-engservices'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'], 
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "henosis-repo": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.jenkins.cac.git']],
+                        branches: [[name: 'uday_1869']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
+                        [$class: 'ScmName', name: 'ose-repo'],
+                        [$class: 'CleanBeforeCheckout']]])
+                    }
+                ) 
+            }
+        }
+    
+        stage('ABI') {
+			     agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -v /nfs/png/disks/ecg_es_disk2:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    abi.shell("cp -r ${WORKSPACE}/abi/henosis/cac/rpl-p/lin/android/sriov/IDF ${WORKSPACE}/abi")
+		            PrepareWS()
+                } 
+            }
+        }
+        
+        
+        stage('BUILD') {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -v /nfs/png/home/lab_bldmstr/docker:/home/lab_bldmstr/.ssh -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v /nfs/png/disks/ecg_es_disk2:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                Reports_folder()
+                dir('abi') {
+                    script {
+                        BuildInfo.instance.data["Version"] = env.BuildVersion
+                        PrepareWS()
+                        abi_build subComponentName: "rplp_andsoids"
+                    }
+                    
+                }
+                
+            }
+        }
+
+    }
+
+
+}
+
+void PrepareWS(String BuildConfig="IDF/BuildConfig.json") {
+    log.Debug("Enter")
+
+    log.Info("This build is running on Node:${env.NODE_NAME} WorkSpace: ${env.WORKSPACE}")
+
+    abi_setup_proxy()
+    
+    abi_init config: BuildConfig, ingPath: "abi", checkoutPath: "abi", skipCheckout: true
+
+    def ctx
+    ctx = abi_get_current_context()
+    ctx['IngredientVersion'] = env.BuildVersion
+    abi_set_current_context(ctx)
+
+    log.Debug("Exit")
+}
