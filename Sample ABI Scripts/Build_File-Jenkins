@@ -4,34 +4,9 @@
 import owm.common.BuildInfo
 Map buildinfo = BuildInfo.instance.data
 
-
-def Reports_folder() {
-    dir("${WORKSPACE}") {
-        sh """#!/bin/bash -xe
-        mkdir -p ${WORKSPACE}/artifacts
-        mkdir -p ${WORKSPACE}/artifacts/reports
-        """
-    }
-}
-
-/*def Artifactsi_Folder() {
-    dir("${WORKSPACE}") {
-        sh"""#!/bin/bash -xe
-         mkdir -p ${WORKSPACE}/vertical-utils
-        cp -r ${WORKSPACE}/abi/dispvirt-vertical-utils/aosp_diff ${WORKSPACE}/vertical-utils
-        cp -r ${WORKSPACE}/abi/dispvirt-vertical-utils/bsp_diff ${WORKSPACE}/vertical-utils
-        cp -r ${WORKSPACE}/abi/dispvirt-vertical-utils/host ${WORKSPACE}/vertical-utils
-        mv ${WORKSPACE}/abi/manifest/.repo/manifests/${MANIFEST_FILE} celadon_sriov_smr0_vertical_${YEAR}_WW${WW}_r2_manifest.xml
-        zip -r vertical_sriov_patches.zip ${WORKSPACE}/vertical-utils
-        zip -r celadon_sriov_scripts.zip ${WORKSPACE}/abi/kvm.scripts/sriov_enabled
-        zip -r sriov_frimwares.zip ${WORKSPACE}/abi/sriov_firmware
-        """
-    }
-
-}*/
-
-
-
+email_receipients = "udaykumarx.kalla@intel.com"
+subject = '$DEFAULT_SUBJECT'
+body = '${SCRIPT, template="managed:abi.html"}'
 
 pipeline {
     agent {
@@ -42,21 +17,12 @@ pipeline {
 
     environment {
         DATETIME = new Date().format("yyyyMMdd-HHmm");
-        YEAR = new Date().format("yyyy")
-        WW = new Date().format("ww")
-        BDSERVER='https://amrprotex008.devtools.intel.com'
-        WORKSPACE_LIN="/build/cje/workspace/${JOB_BASE_NAME}"
         BuildVersion = "1.0.000"
         ABI_CONTAINER = "TRUE"
         DOCKER = "rplpabi:0412"
-        TMPDIR = "/OWR/Tools/tmp"
-        JOB_TYPE = "prod"
-        HOST_LTOKEN = "/nfs/png/home/lab_bldmstr/.klocwork/ltoken"
-        NFS_KW_INSTALLER = "/nfs/png/disks/ecg_es_disk2"
-        STAGING_DIR = "${WORKSPACE}/abi/upload"
     }
 
-     options {
+    options {
         timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '90', artifactDaysToKeepStr: '30'))
@@ -65,16 +31,8 @@ pipeline {
 
     parameters {
         booleanParam(name: 'CLEAN', defaultValue: true, description: 'Clean workspace')      
-        booleanParam(name: 'BUILD', defaultValue: true, description: 'Build release binaries')
-        booleanParam(name: 'BDBA', defaultValue: true, description: 'Execute BDBA Scan on binaries')
-        booleanParam(name: 'CLANG', defaultValue: true, description: 'Execute CLANG scan on sources')
-        booleanParam(name: 'PROTEX', defaultValue: true, description: 'Execute PROTEX Scan on sources')      
-        booleanParam(name: 'VIRUSSCAN', defaultValue: true, description: 'Execute Virus Scan on results')        
         booleanParam(name: 'EMAIL', defaultValue: true, description: 'Email notification upon job completion')
-        booleanParam(name: 'PUBLISH', defaultValue: true, description: 'Artifacts deployment')
-	    string(name: 'MANIFEST_BRANCH', trim: true, defaultValue: '2023_WW08_SMR0_R2', description: 'Provide Git init Branch name, Ex: master')
-        string(name: 'MANIFEST_FILE', trim: true, defaultValue: 'r2_vertical_sriov_manifest.xml', description: 'Provide Manifest filename, Ex: RPLP_SRIOV_CIV.xml')
-        string(name: 'KVM_BRANCH', trim: true, defaultValue: 'rpl_p_beta', description: 'Provide Git init Branch name, Ex: master')
+	    string(name: 'MANIFEST_BRANCH', trim: true, defaultValue: '', description: 'Provide Git init Branch name, Ex: master')
     }
 
     stages {
@@ -128,7 +86,7 @@ pipeline {
         }
     
         stage('ABI') {
-			     agent {
+			agent {
                 docker {
                     image "${DOCKER}"
                     args '--entrypoint= -v /nfs/png/disks/ecg_es_disk2:/build/tools'
@@ -166,6 +124,25 @@ pipeline {
             }
         }
 
+    }
+
+    post {
+        success {
+            build job: 'GEN-LIN-ETH.I225-QA-DLY', parameters: [string(name: 'UPSTREAM_DATE', value: "${DATETIME}")], wait: false
+        }
+        always {
+            script {
+                // To trigger Log Parser build to push Build log to Splunk Server.
+                build job: 'iotgdevops01/ADM-LOG_PARSER',
+                parameters: [ stringParam(name: 'JOB_RESULT', value: "${currentBuild.result}"),
+                stringParam(name: 'BUILD_URL', value: "${env.BUILD_URL}"), booleanParam(name: 'SPLUNK', value: true)
+                ], wait: false, propagate: false
+
+                if (params.EMAIL == true) {
+                   abi_send_email.SendEmail("${email_receipients}","${body}","${subject}")
+                }
+            }
+        }
     }
 
 
