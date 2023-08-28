@@ -6,10 +6,7 @@
     "OutputDir": "OWRBuild",
     "PackageRoot": "OWRPackage",
     "PackageMetadataTemplate": "idf/PackageMetadataTemplate.json",
-   /* "Protex": {
-        "Server": "amrprotex003.devtools.intel.com",
-        "ProjectID": "c_iotg_seg_sed_ese_ethernet-tsndriver_dev-bkc_22712"
-   },*/
+   
     "SubComponents": [
         {
             "Name": "tep-debian",
