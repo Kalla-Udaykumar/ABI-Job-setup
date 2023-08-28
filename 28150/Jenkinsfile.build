@@ -113,7 +113,7 @@ pipeline {
                     script {
                         BuildInfo.instance.data["Version"] = env.BuildVersion
                         PrepareWS()
-                        abi_build subComponentName: "tep-debian"
+                        abi_build subComponentName: "tep-debian-container"
                     }
                     
                 }
