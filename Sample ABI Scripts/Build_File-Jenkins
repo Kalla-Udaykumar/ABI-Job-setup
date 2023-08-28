@@ -1,5 +1,5 @@
 #!groovy
-@Library('abi@2.4.0') _
+@Library('abi') _
 
 import owm.common.BuildInfo
 Map buildinfo = BuildInfo.instance.data
