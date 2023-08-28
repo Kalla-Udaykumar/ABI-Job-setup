@@ -9,7 +9,7 @@
    
     "SubComponents": [
         {
-            "Name": "tep-debian",
+            "Name": "tep-debian-container",
             "Description": "TEP Debian Script App",
             "ProjectFile": "./build.sh",
             "ProjectType": "Script",
