@@ -11,7 +11,7 @@
         {
             "Name": "tep-debian-container",
             "Description": "TEP Debian Script App",
-            "ProjectFile": "./build.sh",
+            "ProjectFile": "./con_build.sh",
             "ProjectType": "Script",
             "WorkingDirectory": "idf",
             "AdditionalFlags": "",
