@@ -1,0 +1,142 @@
+#!groovy
+@Library('abi') _
+
+import owm.common.BuildInfo
+Map buildinfo = BuildInfo.instance.data
+
+pipeline {
+
+    agent {
+        node {
+            label 'BSP-DOCKER20-SLES12'
+        }
+    }
+
+    environment {
+        DATETIME = new Date().format("yyyyMMdd-HHmm");
+        BuildVersion = "1.0.000"
+        ABI_CONTAINER = "TRUE"
+        DOCKER = "teptest:28150"
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '90', artifactDaysToKeepStr: '30'))
+        skipDefaultCheckout()
+    }
+
+    parameters {
+        booleanParam(name: 'CLEAN', defaultValue: true, description: 'Clean workspace')      
+        booleanParam(name: 'EMAIL', defaultValue: true, description: 'Email notification upon job completion')
+	string(name: 'TEP_BRANCH', trim: true, defaultValue: 'master', description: 'Provide Git init Branch name, Ex: master')
+    }
+
+    stages {
+        
+        stage ("CLEAN") {
+            when {
+                expression { params.CLEAN == true }
+            }
+            steps {
+                deleteDir()
+                //currentBuild.displayName = "TEP_META-${BUILD_NUMBER}"
+            }
+        }   
+
+        stage ("SCM: GIT") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -e PATH=/home/lab_bldmstr/bin:$PATH -v /nfs/png/home/lab_bldmstr/docker:/home/lab_bldmstr/.ssh -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v /nfs/png/disks/ecg_es_disk2:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                parallel(
+                    "Tep_meta": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/os.security.tep.meta-tep-build-setup.git']],
+                        branches: [[name: "${TEP_BRANCH}"]],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/tep_build'],
+                        [$class: 'ScmName', name: 'esc-engservices'],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "Henosis-repo": {
+                        /*checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.jenkins.cac.git']],
+                        branches: [[name: 'uday_1869']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
+                        [$class: 'ScmName', name: 'ose-repo'],
+                        [$class: 'CleanBeforeCheckout']]])*/
+
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/Kalla-Udaykumar/ABI-Job-setup.git']],
+                        branches: [[name: 'master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/henosis'],
+                        [$class: 'ScmName', name: 'ose-repo'],
+                        [$class: 'CleanBeforeCheckout']]])
+                    }
+                ) 
+            }
+        }
+
+        stage ("ABI") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -v /nfs/png/disks/ecg_es_disk2:/build/tools'
+                    reuseNode true
+                }
+            }
+            steps {
+                script {
+                    abi.shell("cp -r ${WORKSPACE}/abi/henosis/28150/idf ${WORKSPACE}/abi")
+		            PrepareWS()
+                } 
+            }
+        }
+
+        stage ("BUILD") {
+            agent {
+                docker {
+                    image "${DOCKER}"
+                    args '--entrypoint= -v /nfs/png/home/lab_bldmstr/docker:/home/lab_bldmstr/.ssh -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v /nfs/png/disks/ecg_es_disk2:/build/tools  -e http_proxy=http://proxy-dmz.intel.com:911 -e https_proxy=http://proxy-dmz.intel.com:912 -e no_proxy=intel.com,.intel.com,10.0.0.0/8,192.168.0.0/16,localhost,.local,127.0.0.0/8,134.134.0.0/16'
+                    reuseNode true
+                }
+            }
+            steps {
+                // Reports_folder()
+                dir('abi') {
+                    script {
+                        BuildInfo.instance.data["Version"] = env.BuildVersion
+                        PrepareWS()
+                        abi_build subComponentName: "tep-debian-acrn"
+                    }
+                    
+                }
+                
+            }
+        }
+    }
+}
+
+
+void PrepareWS(String BuildConfig="idf/BuildConfig.json") {
+    log.Debug("Enter")
+
+    log.Info("This build is running on Node:${env.NODE_NAME} WorkSpace: ${env.WORKSPACE}")
+
+    abi_setup_proxy()
+    
+    abi_init config: BuildConfig, ingPath: "abi", checkoutPath: "abi", skipCheckout: true
+
+    def ctx
+    ctx = abi_get_current_context()
+    ctx['IngredientVersion'] = env.BuildVersion
+    abi_set_current_context(ctx)
+
+    log.Debug("Exit")
+}
