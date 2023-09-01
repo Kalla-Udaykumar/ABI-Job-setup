@@ -31,6 +31,7 @@
             "Klocwork": {
                 "SkipKlocworkScan": true
             }
+        }
     ],    
     "SchemaVersion": "1.0"
 }
