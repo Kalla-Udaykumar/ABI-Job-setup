@@ -8,7 +8,7 @@ pipeline {
 
     agent {
         node {
-            label 'ESC-DOCKER1-SLES12'
+            label 'BSP-DOCKER20-SLES12'
         }
     }
 
@@ -16,7 +16,7 @@ pipeline {
         DATETIME = new Date().format("yyyyMMdd-HHmm");
         BuildVersion = "1.0.000"
         ABI_CONTAINER = "TRUE"
-        DOCKER = "tepmeta:28150"
+        DOCKER = "teptest:28150"
     }
 
     options {
