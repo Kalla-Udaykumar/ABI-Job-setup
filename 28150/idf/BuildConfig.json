@@ -19,7 +19,18 @@
             "Klocwork": {
                 "SkipKlocworkScan": true
             }
-        }
+        },
+        {
+            "Name": "tep-debian-acrn",
+            "Description": "TEP Debian Script App",
+            "ProjectFile": "./acrn_build.sh",
+            "ProjectType": "Script",
+            "WorkingDirectory": "idf",
+            "AdditionalFlags": "",
+            "AdditionalEnvVars": "",
+            "Klocwork": {
+                "SkipKlocworkScan": true
+            }
     ],    
     "SchemaVersion": "1.0"
 }
