@@ -29,7 +29,7 @@ pipeline {
     parameters {
         booleanParam(name: 'CLEAN', defaultValue: true, description: 'Clean workspace')      
         booleanParam(name: 'EMAIL', defaultValue: true, description: 'Email notification upon job completion')
-	    string(name: 'TEP-BRANCH', trim: true, defaultValue: 'master', description: 'Provide Git init Branch name, Ex: master')
+	string(name: 'TEP_BRANCH', trim: true, defaultValue: 'master', description: 'Provide Git init Branch name, Ex: master')
     }
 
     stages {
@@ -40,9 +40,9 @@ pipeline {
             }
             steps {
                 deleteDir()
-                currentBuild.displayName = "TEP_META-${BUILD_NUMBER}"
+                //currentBuild.displayName = "TEP_META-${BUILD_NUMBER}"
             }
-        }   // https://github.com/Kalla-Udaykumar/ABI-Job-setup/tree/master
+        }   
 
         stage ("SCM: GIT") {
             agent {
@@ -57,7 +57,7 @@ pipeline {
                     "Tep_meta": {
                         checkout([$class: 'GitSCM',
                         userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/os.security.tep.meta-tep-build-setup.git']],
-                        branches: [[name: "master"]],
+                        branches: [[name: "${TEP_BRANCH}"]],
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'abi/tep_build'],
                         [$class: 'ScmName', name: 'esc-engservices'],
                         [$class: 'CleanBeforeCheckout'],
