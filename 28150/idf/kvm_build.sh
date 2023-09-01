@@ -1,3 +1,3 @@
 #!/bin/bash
-cd /abi/tep_build
+cd ${WORKSPACE}/abi/tep_build
 ./debian_build_kvm.sh dev
