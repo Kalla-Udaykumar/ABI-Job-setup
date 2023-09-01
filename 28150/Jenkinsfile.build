@@ -108,7 +108,7 @@ pipeline {
                 }
             }
             steps {
-                Reports_folder()
+                // Reports_folder()
                 dir('abi') {
                     script {
                         BuildInfo.instance.data["Version"] = env.BuildVersion
