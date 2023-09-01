@@ -9,9 +9,9 @@
    
     "SubComponents": [
         {
-            "Name": "tep-debian-container",
+            "Name": "tep-debian-kvm",
             "Description": "TEP Debian Script App",
-            "ProjectFile": "./con_build.sh",
+            "ProjectFile": "./kvm_build.sh",
             "ProjectType": "Script",
             "WorkingDirectory": "idf",
             "AdditionalFlags": "",
