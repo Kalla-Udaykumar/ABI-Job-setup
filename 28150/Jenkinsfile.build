@@ -103,7 +103,7 @@ pipeline {
             agent {
                 docker {
                     image "${DOCKER}"
-                    args '--entrypoint= -v /nfs/png/home/lab_bldmstr/docker:/home/lab_bldmstr/.ssh -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v /nfs/png/disks/ecg_es_disk2:/build/tools'
+                    args '--entrypoint= -v /nfs/png/home/lab_bldmstr/docker:/home/lab_bldmstr/.ssh -v /nfs/png/home/lab_bldmstr/bin:/home/lab_bldmstr/bin -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials -v /nfs/png/disks/ecg_es_disk2:/build/tools  -e http_proxy=http://proxy-dmz.intel.com:911 -e https_proxy=http://proxy-dmz.intel.com:912 -e no_proxy=intel.com,.intel.com,10.0.0.0/8,192.168.0.0/16,localhost,.local,127.0.0.0/8,134.134.0.0/16'
                     reuseNode true
                 }
             }
