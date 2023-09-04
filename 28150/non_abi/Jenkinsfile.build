@@ -1,0 +1,79 @@
+#!groovy
+
+pipeline {
+
+    agent {
+        node {
+            label ""
+        }
+    }
+
+    environment {
+        DAY = new Date().format("u")
+        DATETIME = new Date().format("yyyyMMdd-HHmm");
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '90', artifactDaysToKeepStr: '30'))
+        skipDefaultCheckout()
+    }
+
+    parameters {
+        booleanParam(name: 'CLEANWS', defaultValue: true, description: 'Clean workspace')
+        booleanParam(name: 'EMAIL', defaultValue: true, description: 'Email notification upon job completion')
+        booleanParam(name: 'PUBLISH', defaultValue: true, description: 'Artifacts deployment')
+        string(name: 'TEP_BRANCH', trim: true, defaultValue: 'master', description: 'Provide Git init Branch name, Ex: master')
+    }
+
+    stages {
+
+        stage ("CLEAN") {
+            when {
+                expression { params.CLEANWS == true }
+            }
+            steps {
+                deleteDir()
+            }
+        }
+
+        stage ("SCM") {
+            steps {
+                parallel (
+                    "meta_tep": {
+                        checkout([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/os.security.tep.meta-tep-build-setup.git']],
+                        branches: [[name: "${TEP_BRANCH}"]],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'tep_build'],
+                        [$class: 'ScmName', name: 'esc-engservices'],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    },
+                    "eng_services": {
+                        checkout changelog: false, scm: ([$class: 'GitSCM',
+                        userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/libraries.devops.henosis.build.automation.services.git']],
+                        branches: [[name: 'refs/heads/master']],
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'esc-engservices'],
+                        [$class: 'ScmName', name: 'esc-engservices'],
+                        [$class: 'CloneOption', timeout: 60],
+                        [$class: 'CleanBeforeCheckout'], 
+                        [$class: 'CheckoutOption', timeout: 60]]])
+                    }
+                )
+            }
+        }
+
+        stage ("BUILD") {
+            steps {
+                dir ("${WORKSPACE}") {
+                    sh """
+                        cd ${WORKSPACE}/tep_build && \
+                        ./debian_build_kvm.sh dev
+                    """
+                }
+            }
+        }
+    }
+}
