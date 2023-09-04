@@ -65,9 +65,9 @@ pipeline {
             }
         }
 
-        stage ("BUILD") {
+        stage("BUILD") {
             steps {
-                dir ("${WORKSPACE}") {
+                dir("${WORKSPACE}") {
                     sh """
                         cd ${WORKSPACE}/tep_build && \
                         ./debian_build_acrn.sh dev
