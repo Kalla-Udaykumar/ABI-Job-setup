@@ -4,7 +4,7 @@ pipeline {
 
     agent {
         node {
-            label ""
+            label "TCaaS-DOCKER1-UB22"
         }
     }
 
