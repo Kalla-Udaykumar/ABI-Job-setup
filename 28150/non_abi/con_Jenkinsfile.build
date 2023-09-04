@@ -67,7 +67,7 @@ pipeline {
 
         stage ("BUILD") {
             steps {
-                dir ("${WORKSPACE}") {
+                dir("${WORKSPACE}") {
                     sh """
                         cd ${WORKSPACE}/tep_build && \
                         ./debian_build_container.sh dev
