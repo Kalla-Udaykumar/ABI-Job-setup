@@ -76,4 +76,14 @@ pipeline {
             }
         }
     }
+
+    post{        
+        always{
+            sh"""
+                sudo chown -R 44051:17838 ${WORKSPACE}/"
+            """
+            /* ls -la ${WORKSPACE}/jenkins-script/binaries/ || true
+                ls -la ${WORKSPACE}/PPA/ || true */
+        }
+    }
 }
