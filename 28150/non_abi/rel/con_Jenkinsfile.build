@@ -70,6 +70,9 @@ pipeline {
                 dir("${WORKSPACE}") {
                     sh """
                         cd ${WORKSPACE}/tep_build && \
+                        ./generate_release.sh tep-container && \
+                        tar –xvf tep-container-release.tar.gz && \
+                        cd tep-container-release && \
                         ./debian_build_container.sh rel
                     """
                 }
