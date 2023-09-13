@@ -11,6 +11,21 @@ pipeline {
     environment {
         DAY = new Date().format("u")
         DATETIME = new Date().format("yyyyMMdd-HHmm");
+        HTTP_PROXY="http://proxy-dmz.intel.com:911"
+        HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+        no_proxy="intel.com,.intel.com,10.0.0.0/8,192.168.0.0/16,localhost,.local,127.0.0.0/8,134.134.0.0/16"
+        DOCKER_HTTP_PROXY="${HTTP_PROXY}"
+        DOCKER_HTTPS_PROXY="${HTTPS_PROXY}"
+        CMD_DOCKER_RUN = "docker run --rm -t \
+        --privileged -e LOCAL_USER=lab_bldmstr -e LOCAL_USER_ID=`id -u` -e LOCAL_GROUP_ID=`id -g` \
+        -v /nfs/png/home/lab_bldmstr/.gitconfig:/home/lab_bldmstr/.gitconfig \
+        -v /nfs/png/home/lab_bldmstr/.netrc:/home/lab_bldmstr/.netrc \
+        -v /nfs/png/home/lab_bldmstr/.git-credentials:/home/lab_bldmstr/.git-credentials \
+        -v /nfs/png/home/lab_bldmstr/.ssh:/home/lab_bldmstr/.ssh \
+        -v /nfs/png/disks/ecg_es_disk2:/nfs/png/disks/ecg_es_disk2 \
+        -e http_proxy=${http_proxy} -e https_proxy=${https_proxy} \
+        -v ${WORKSPACE}:${WORKSPACE} -w ${WORKSPACE} --name ${BUILD_TAG}_GENERAL \
+        amr-registry.caas.intel.com/esc-devops/gen/lin/edge/ubuntu/package_builder:20221114_1503"
     }
 
     options {
@@ -70,10 +85,21 @@ pipeline {
                 dir("${WORKSPACE}") {
                     sh """
                         cd ${WORKSPACE}/tep_build && \
-                        ./debian_build_kvm.sh dev
+                        ./generate_release.sh "tep-kvm" && \
+                        tar –xvf tep-kvm-release.tar.gz && \
+                        cd tep-kvm-release && \
+                        sudo ./debian_build_kvm.sh rel
                     """
                 }
             }
+        }
+    }
+
+     post{
+        always{
+            sh"""
+                $CMD_DOCKER_RUN bash -c "sudo chown -R 44051:17838 ${WORKSPACE}/"
+            """
         }
     }
 }
