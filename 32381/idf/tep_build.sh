@@ -1,4 +1,7 @@
 #!/bin/bash -xe
+export http_proxy=http://proxy-dmz.intel.com:912
+export https_proxy=http://proxy-dmz.intel.com:912
+export no_proxy=intel.com,.intel.com,10.0.0.0/8,192.168.0.0/16,localhost,.local,127.0.0.0/8,134.134.0.0/16
 pip3 install ruamel.yaml
 pip3 install kas==2.5.0
 cd ${WORKSPACE}/abi/meta-tep-build-setup
