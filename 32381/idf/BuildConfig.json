@@ -1,0 +1,50 @@
+{
+    "IngredientName": "gen-lin-tep",
+    "Description": "IDF ABI Project Config File for GEN LIN TEP Ingredient",
+    "OutputConfiguration": "idf/PackageGen.json",
+    "OutputRoot": "OWRBin",
+    "OutputDir": "OWRBuild",
+    "PackageRoot": "OWRPackage",
+    "PackageMetadataTemplate": "idf/PackageMetadataTemplate.json",
+    "BinaryScan": {
+        "ServerURL": "https://bdba001.icloud.intel.com",
+        "ServerGroup": "52"
+    },
+    "BuildInfo":{
+        "Name":"Test_setup",
+        "FullName":"",
+        "SDL": [
+            {
+                "ID": "",
+                "URL": "",
+                "Submitter": "lab_bldmstr"
+            }
+        ],
+        "ServerURL":"https://onebkc.intel.com",
+        "Type":"onebkc"
+    },
+    "VulnerabilityScan": {
+        "ServerURL": "https://snyk.devtools.intel.com/api"
+    },
+    "StaticSecurityScan": {
+        "ServerURL": "https://sast.intel.com",
+        "ProjectID": "336687",
+        "IsPublic": true
+    },
+    
+    "SubComponents": [
+        {
+            "Name": "tep_build",
+            "Description": "GEN LIN DRIVER Script App",
+            "ProjectFile": "./tep_build.sh",
+            "ProjectType": "Script",
+            "WorkingDirectory": "idf",
+            "AdditionalFlags": "",
+            "AdditionalEnvVars": "",
+            "Klocwork": {
+                "SkipKlocworkScan": true
+            }
+        }
+     ],
+    "SchemaVersion": "1.0"
+}
