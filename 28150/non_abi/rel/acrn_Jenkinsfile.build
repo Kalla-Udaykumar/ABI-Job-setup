@@ -59,7 +59,7 @@ pipeline {
                     "meta_tep": {
                         checkout([$class: 'GitSCM',
                         userRemoteConfigs: [[credentialsId: 'GitHub-Token', url: 'https://github.com/intel-innersource/os.security.tep.meta-tep-build-setup.git']],
-                        branches: [[name: "${TEP_BRANCH}"]],
+                        branches: [[name: "refs/heads/master"]],
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'tep_build'],
                         [$class: 'ScmName', name: 'esc-engservices'],
                         [$class: 'CleanBeforeCheckout'],
@@ -80,22 +80,49 @@ pipeline {
             }
         }
 
-        stage("BUILD") {
+        stage ("RELEASE_PK DOWNLOAD") {
             steps {
-                dir("${WORKSPACE}") {
-                    sh """
-                        cd ${WORKSPACE}/tep_build && \
-                        ./generate_release.sh "tep-acrn" && \
-                        tar –xvf tep-acrn-release.tar.gz && \
-                        cd tep-acrn-release && \
-                        sudo ./debian_build_acrn.sh rel
-                    """
+                script {
+                    def artServer = Artifactory.server "ubit-artifactory-ba.intel.com"
+                    def artFiles  = """ {
+                        "files": [
+                            {
+                                "pattern": "pse-tgl-local/tep/builds/tep-release-pkg/*/*/tep-acrn-release.tar.gz.bz2",
+                                "target": "download/",
+                                "flat": "true",
+                                "recursive": "true",
+                                "sortBy": ["modified"],
+                                "sortOrder": "desc",
+                                "limit" : 1
+                            }
+                        ]
+                    }"""
+                    artServer.download spec: artFiles
+                }
+            }
+        }
+
+        stage ("BUILD") {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'BuildAutomation', passwordVariable: 'BUILD_PWD', usernameVariable: 'BUILD_USR')]) {
+                    dir("${WORKSPACE}") {
+                        sh """#!/bin/bash
+                            cd ${WORKSPACE}/download && \
+                            bzip2 -d tep-acrn-release.tar.gz.bz2
+                        """    
+                        sh"""
+                            cd ${WORKSPACE}/download && \
+                            tar xvf tep-acrn-release.tar.gz && \
+                            cd tep-acrn-release && \
+                            ./debian_build_acrn.sh rel
+                        """
+                    }  
                 }
             }
         }
     }
 
-     post{
+    post{
         always{
             sh"""
                 $CMD_DOCKER_RUN bash -c "sudo chown -R 44051:17838 ${WORKSPACE}/"
